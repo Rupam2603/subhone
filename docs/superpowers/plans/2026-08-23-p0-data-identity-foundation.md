@@ -65,7 +65,7 @@
 
 **Interfaces:**
 - Consumes: nothing (first task)
-- Produces: `loadEnv(rawEnv) → validated config object`; `connectDb(uri) → Promise<mongoose.Connection>`; constants `FREE_DELIVERY_ABOVE_PAISE`, `DELIVERY_FEE_PAISE`, `ORDER_STATUS` (array), `MAX_CART_ITEM_QTY`
+- Produces: `loadEnv(rawEnv) → validated config object`; `connectDb(uri) → Promise<mongoose.Connection>`; constants `FREE_DELIVERY_ABOVE_PAISE`, `DELIVERY_FEE_PAISE`, `ORDER_STATUS` (array), `CUSTOMER_TIMELINE` (array), `MAX_CART_ITEM_QTY`, `RUPEE`, `TYPE_MAP`
 
 - [ ] **Step 1: Install dependencies**
 
@@ -1152,7 +1152,7 @@ git commit -m "feat: add error envelope, async handler and zod validation middle
 
 **Interfaces:**
 - Consumes: `tokenService` (Task 5), `User` (Task 4), `AppError` (Task 6)
-- Produces: `attachUser` (never throws; sets `req.user` or leaves it undefined); `requireAuth`; `requireRole(...roles)`; `originCheck(allowedOrigins)`; `rateLimit.loginLimiter`, `rateLimit.otpRequestLimiter`, `rateLimit.otpVerifyLimiter`
+- Produces: `attachUser` (never throws; sets `req.user` or leaves it undefined); `requireAuth`; `requireRole(...roles)`; `originCheck(allowedOrigins)`; `rateLimit.loginLimiter`, `rateLimit.otpRequestLimiter`, `rateLimit.otpIpLimiter`, `rateLimit.otpVerifyLimiter`
 - Cookie names: `so_at` (access), `so_rt` (refresh), `so_gid` (guest id)
 
 - [ ] **Step 1: Write the failing test**
@@ -1369,9 +1369,9 @@ git commit -m "feat: add auth, role, origin and rate-limit middleware"
 ## Task 8: authService and the auth routes
 
 **Files:**
-- Create: `server/src/services/authService.js`, `server/src/routes/auth.js`, `server/src/utils/cookies.js`
+- Create: `server/src/services/authService.js`, `server/src/routes/auth.js`, `server/src/utils/cookies.js`, `server/src/app.js`
 - Test: `server/tests/routes/auth.test.js`
-- Modify: `server/src/index.js` (mount `/api/auth`, add `cookieParser`, `originCheck`, `attachUser`)
+- Modify: `server/src/index.js` (reduced to boot + listen; the middleware chain and route mounting move into the new `app.js` so supertest can mount the app without opening a port — Tasks 12–16 all declare `app.js` as their mount point, so it must exist after this task)
 
 **Interfaces:**
 - Consumes: `User`, `tokenService`, `AppError`, `validate`, `rateLimit`
