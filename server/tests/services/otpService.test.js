@@ -1,6 +1,5 @@
 // `describe/it/expect/vi` come from vitest's injected globals (vitest.config.js sets
 // `globals: true`), exactly as every other suite in this repo does. The plan's snippet
-// opened with `require("vitest")`, which cannot work here: vitest 4's `require`
 // condition resolves to node_modules/vitest/index.cjs, whose entire body is
 // `throw new Error("Vitest cannot be imported in a CommonJS module using require()")`.
 // That line would abort the file before a single test ran.

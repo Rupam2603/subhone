@@ -1,4 +1,3 @@
-const { describe, it, expect, beforeEach } = require("vitest");
 const express = require("express");
 const cookieParser = require("cookie-parser");
 const request = require("supertest");

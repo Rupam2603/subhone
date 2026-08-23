@@ -1,4 +1,3 @@
-const { describe, it, expect } = require("vitest");
 const request = require("supertest");
 const app = require("../../src/app"); // extracted in this task
 const User = require("../../src/models/User");
