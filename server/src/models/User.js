@@ -18,6 +18,9 @@ const userSchema = new mongoose.Schema(
     email: { type: String, sparse: true, unique: true },
     phone: { type: String, sparse: true, unique: true },
     passwordHash: { type: String }, // Optional, since phone login uses OTP
+    // Bumped to invalidate every outstanding access token (password change, forced
+    // sign-out). tokenService puts it in the `ver` claim; attachUser compares them.
+    tokenVersion: { type: Number, default: 0 },
     addresses: [addressSchema],
   },
   { timestamps: true }
