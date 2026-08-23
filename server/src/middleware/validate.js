@@ -1,17 +1,25 @@
-const validate = (schema) => (req, res, next) => {
-  try {
-    const result = schema.parse({
-      body: req.body,
-      query: req.query,
-      params: req.params,
-    });
-    req.body = result.body;
-    req.query = result.query;
-    req.params = result.params;
-    next();
-  } catch (error) {
-    next(error);
-  }
-};
+const AppError = require("../utils/AppError");
 
-module.exports = validate;
+// validate({ body?, params?, query? }) — one zod schema per request part.
+// Only the parts a schema declares are re-assigned; the others are left exactly
+// as Express built them. Assigning all three unconditionally wiped req.query and
+// req.params for body-only schemas.
+module.exports = (schemas = {}) => (req, res, next) => {
+  for (const key of ["body", "params", "query"]) {
+    if (!schemas[key]) continue;
+    const parsed = schemas[key].safeParse(req[key]);
+    if (!parsed.success) {
+      return next(new AppError(
+        422,
+        "VALIDATION_ERROR",
+        "Some fields need attention.",
+        parsed.error.issues.map((issue) => ({
+          path: issue.path.join("."),
+          message: issue.message,
+        }))
+      ));
+    }
+    req[key] = parsed.data;
+  }
+  return next();
+};
