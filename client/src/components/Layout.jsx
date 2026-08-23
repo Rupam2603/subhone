@@ -4,6 +4,8 @@ import Header from "./Header";
 import Footer from "./Footer";
 import CartDrawer from "./CartDrawer";
 
+import CartAuthBridge from "./CartAuthBridge";
+
 function ScrollToTop() {
   const { pathname } = useLocation();
   useEffect(() => {
@@ -22,6 +24,7 @@ export default function Layout() {
       </main>
       <Footer />
       <CartDrawer />
+      <CartAuthBridge />
     </div>
   );
 }

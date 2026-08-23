@@ -5,12 +5,16 @@ import App from "./App.jsx";
 import { NotificationProvider } from "./context/NotificationContext";
 import { CartProvider } from "./context/CartContext";
 
+import { AuthProvider } from "./context/AuthContext";
+
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <NotificationProvider>
-      <CartProvider>
-        <App />
-      </CartProvider>
+      <AuthProvider>
+        <CartProvider>
+          <App />
+        </CartProvider>
+      </AuthProvider>
     </NotificationProvider>
   </StrictMode>
 );

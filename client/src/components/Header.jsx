@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
-import { Search, ShoppingCart, Menu, X, Upload, Stethoscope, Package, MapPin, Plus, ArrowLeft } from "lucide-react";
+import { Search, ShoppingCart, Menu, X, Upload, Stethoscope, Package, MapPin, Plus, ArrowLeft, LogOut } from "lucide-react";
 import { useCart } from "../context/CartContext";
+import { useAuth } from "../context/AuthContext";
 import { cx } from "../lib/format";
 import SearchModal from "./SearchModal";
 
@@ -27,6 +28,7 @@ function Logo({ onClick }) {
 
 export default function Header() {
   const { count, openDrawer } = useCart();
+  const { user, isAuthenticated, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -111,13 +113,28 @@ export default function Header() {
               <Upload className="h-4 w-4" /> Upload Rx
             </Link>
 
-            <Link
-              to="/orders"
-              className="hidden h-10 w-10 place-items-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-container sm:grid"
-              aria-label="Orders"
-            >
-              <Package className="h-5 w-5" />
-            </Link>
+            {isAuthenticated ? (
+              <div className="group relative hidden sm:block">
+                <button className="flex h-10 items-center gap-2 rounded-full px-3 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-surface-container">
+                  <span className="grid h-6 w-6 place-items-center rounded-full bg-primary/10 text-primary">
+                    {user?.name?.charAt(0).toUpperCase()}
+                  </span>
+                  {user?.name?.split(" ")[0]}
+                </button>
+                <div className="absolute right-0 top-full mt-1 hidden w-48 flex-col overflow-hidden rounded-2xl border border-outline-variant/60 bg-surface-container-lowest shadow-lg group-hover:flex">
+                  <Link to="/orders" className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-on-surface hover:bg-surface-container">
+                    <Package className="h-4 w-4 text-primary" /> My orders
+                  </Link>
+                  <button onClick={logout} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-medium text-error hover:bg-error/5">
+                    <LogOut className="h-4 w-4" /> Sign out
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <Link to="/login" className="hidden h-10 items-center rounded-full px-4 text-sm font-semibold text-primary transition-colors hover:bg-primary/5 sm:flex">
+                Sign in
+              </Link>
+            )}
 
             <button
               onClick={openDrawer}
@@ -177,9 +194,20 @@ export default function Header() {
               <Link to="/consult" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 rounded-xl px-4 py-3 text-base font-semibold text-on-surface hover:bg-surface-container">
                 <Stethoscope className="h-5 w-5 text-primary" /> Consult a doctor
               </Link>
-              <Link to="/orders" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 rounded-xl px-4 py-3 text-base font-semibold text-on-surface hover:bg-surface-container">
-                <Package className="h-5 w-5 text-primary" /> My orders
-              </Link>
+              {isAuthenticated ? (
+                <>
+                  <Link to="/orders" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 rounded-xl px-4 py-3 text-base font-semibold text-on-surface hover:bg-surface-container">
+                    <Package className="h-5 w-5 text-primary" /> My orders
+                  </Link>
+                  <button onClick={() => { logout(); setMobileOpen(false); }} className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-base font-semibold text-error hover:bg-error/5">
+                    <LogOut className="h-5 w-5" /> Sign out
+                  </button>
+                </>
+              ) : (
+                <Link to="/login" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 rounded-xl px-4 py-3 text-base font-semibold text-on-surface hover:bg-surface-container">
+                  <LogOut className="h-5 w-5 text-primary" /> Sign in
+                </Link>
+              )}
             </nav>
           </div>
         </div>

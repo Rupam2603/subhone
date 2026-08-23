@@ -10,6 +10,9 @@ import Consult from "./pages/Consult";
 import Checkout from "./pages/Checkout";
 import Orders from "./pages/Orders";
 import NotFound from "./pages/NotFound";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import RequireAuth from "./components/RequireAuth";
 
 export default function App() {
   return (
@@ -25,8 +28,10 @@ export default function App() {
           <Route path="/consult" element={<Consult />} />
           <Route path="/cart" element={<Navigate to="/checkout" replace />} />
           <Route path="/checkout" element={<Checkout />} />
-          <Route path="/orders" element={<Orders />} />
-          <Route path="/orders/:id" element={<Orders />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/orders" element={<RequireAuth><Orders /></RequireAuth>} />
+          <Route path="/orders/:id" element={<RequireAuth><Orders /></RequireAuth>} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

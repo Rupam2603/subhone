@@ -10,6 +10,16 @@ const qs = (params) => {
 };
 
 let refreshPromise = null;
+let authLostListeners = [];
+
+export const onAuthLost = (fn) => {
+  authLostListeners.push(fn);
+  return () => {
+    authLostListeners = authLostListeners.filter((l) => l !== fn);
+  };
+};
+
+const notifyAuthLost = () => authLostListeners.forEach((fn) => fn());
 
 async function request(path, options = {}) {
   const isForm = options.body instanceof FormData;
@@ -44,6 +54,7 @@ async function request(path, options = {}) {
     } catch (err) {
       // Refresh failed, session is dead. The UI will handle it if we return 401.
       // E.g., AuthContext will set user to null.
+      notifyAuthLost();
     }
   }
 
@@ -74,6 +85,8 @@ export const api = {
   sendOtp: (phone) => request(`/otp/send`, { method: "POST", body: JSON.stringify({ phone }) }),
   loginWithOtp: (phone, code) => request(`/otp/login`, { method: "POST", body: JSON.stringify({ phone, code }) }),
   linkPhone: (phone, code) => request(`/otp/link`, { method: "POST", body: JSON.stringify({ phone, code }) }),
+  requestOtp: (phone) => request(`/otp/send`, { method: "POST", body: JSON.stringify({ phone }) }),
+  verifyOtp: (body) => request(`/otp/login`, { method: "POST", body: JSON.stringify(body) }),
 
   // Catalog
   getMedicines: (params) => request(`/medicines${qs(params)}`),
