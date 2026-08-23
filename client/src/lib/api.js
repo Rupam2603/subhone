@@ -9,15 +9,43 @@ const qs = (params) => {
   return s ? `?${s}` : "";
 };
 
+let refreshPromise = null;
+
 async function request(path, options = {}) {
   const isForm = options.body instanceof FormData;
-  const res = await fetch(BASE + path, {
+  const config = {
     ...options,
+    credentials: "include", // Always send cookies
     headers: {
       ...(options.body && !isForm ? { "Content-Type": "application/json" } : {}),
       ...(options.headers || {}),
     },
-  });
+  };
+
+  let res = await fetch(BASE + path, config);
+
+  if (res.status === 401 && path !== "/auth/refresh" && path !== "/auth/login") {
+    // Attempt silent refresh
+    if (!refreshPromise) {
+      refreshPromise = fetch(BASE + "/auth/refresh", { method: "POST", credentials: "include" })
+        .then(async (r) => {
+          if (!r.ok) throw new Error("Refresh failed");
+          return r;
+        })
+        .finally(() => {
+          refreshPromise = null;
+        });
+    }
+
+    try {
+      await refreshPromise;
+      // Retry original request
+      res = await fetch(BASE + path, config);
+    } catch (err) {
+      // Refresh failed, session is dead. The UI will handle it if we return 401.
+      // E.g., AuthContext will set user to null.
+    }
+  }
 
   if (!res.ok) {
     let message = `Something went wrong (${res.status}).`;
@@ -29,11 +57,24 @@ async function request(path, options = {}) {
     }
     throw new Error(message);
   }
+  
   if (res.status === 204) return null;
   return res.json();
 }
 
 export const api = {
+  // Auth
+  register: (body) => request(`/auth/register`, { method: "POST", body: JSON.stringify(body) }),
+  login: (body) => request(`/auth/login`, { method: "POST", body: JSON.stringify(body) }),
+  logout: () => request(`/auth/logout`, { method: "POST" }),
+  refresh: () => request(`/auth/refresh`, { method: "POST" }),
+  me: () => request(`/auth/me`),
+  
+  // OTP
+  sendOtp: (phone) => request(`/otp/send`, { method: "POST", body: JSON.stringify({ phone }) }),
+  loginWithOtp: (phone, code) => request(`/otp/login`, { method: "POST", body: JSON.stringify({ phone, code }) }),
+  linkPhone: (phone, code) => request(`/otp/link`, { method: "POST", body: JSON.stringify({ phone, code }) }),
+
   // Catalog
   getMedicines: (params) => request(`/medicines${qs(params)}`),
   getSupplements: (params) => request(`/supplements${qs(params)}`),
@@ -65,11 +106,17 @@ export const api = {
   clearCart: () => request(`/cart`, { method: "DELETE" }),
 
   // Coupons / checkout / orders
-  validateCoupon: (code, subtotal) =>
-    request(`/coupons/validate`, { method: "POST", body: JSON.stringify({ code, subtotal }) }),
+  validateCoupon: (code) =>
+    request(`/coupons/validate`, { method: "POST", body: JSON.stringify({ code }) }), // server-resolved pricing removes subtotal
   checkout: (body) => request(`/checkout`, { method: "POST", body: JSON.stringify(body) }),
   getOrders: () => request(`/orders`),
   getOrder: (id) => request(`/orders/${id}`),
+
+  // Address
+  getAddresses: () => request(`/addresses`),
+  addAddress: (body) => request(`/addresses`, { method: "POST", body: JSON.stringify(body) }),
+  updateAddress: (id, body) => request(`/addresses/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+  deleteAddress: (id) => request(`/addresses/${id}`, { method: "DELETE" }),
 
   // Consultations & prescriptions
   bookConsultation: (body) =>
