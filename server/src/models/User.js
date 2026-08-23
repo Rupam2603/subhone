@@ -1,5 +1,12 @@
 const mongoose = require("mongoose");
 
+// E.164: a leading "+", a non-zero country digit, then up to 14 more digits. Defined
+// here and exported so phone-shaped fields elsewhere (OtpChallenge, request schemas)
+// validate against one pattern instead of each keeping a copy to drift out of sync.
+// Deliberately not attached to `phone` below: tightening an existing field's
+// validation belongs to the User task, not to the OTP task that needed the constant.
+const E164 = /^\+[1-9]\d{6,14}$/;
+
 const addressSchema = new mongoose.Schema({
   id: { type: String, required: true },
   fullName: { type: String, required: true },
@@ -58,3 +65,4 @@ userSchema.set("toJSON", {
 
 const User = mongoose.model("User", userSchema);
 module.exports = User;
+module.exports.E164 = E164;
