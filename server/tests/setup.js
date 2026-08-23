@@ -1,3 +1,4 @@
+require("dotenv").config({ path: ".env.example" });
 const { MongoMemoryReplSet } = require("mongodb-memory-server");
 const mongoose = require("mongoose");
 
