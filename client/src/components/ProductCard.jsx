@@ -1,4 +1,5 @@
-import { ShoppingCart, FileText } from "lucide-react";
+import { ShoppingCart, FileText, Check } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
 import { useCart } from "../context/CartContext";
 import { discountPct, cx } from "../lib/format";
 import Price from "./ui/Price";
@@ -15,31 +16,45 @@ export default function ProductCard({ product }) {
   const meta = product.packSize || (product.servings ? `${product.servings} servings` : product.category);
 
   return (
-    <article className="card card-hover group flex flex-col overflow-hidden">
+    <motion.article
+      layout
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      whileHover={{ y: -4 }}
+      transition={{ duration: 0.25, ease: "easeOut" }}
+      className="card group flex flex-col overflow-hidden hover:shadow-card-hover hover:border-primary/40 transition-shadow"
+    >
       <div className="relative aspect-square overflow-hidden bg-surface-container-low">
-        <img
+        <motion.img
           src={product.image}
           alt={product.name}
           loading="lazy"
+          whileHover={{ scale: 1.06 }}
+          transition={{ duration: 0.35, ease: "easeOut" }}
           className={cx(
-            "h-full w-full object-cover transition-transform duration-500 group-hover:scale-105",
+            "h-full w-full object-contain p-4 mix-blend-multiply",
             outOfStock && "opacity-60 grayscale"
           )}
         />
-        {pct > 0 && <span className="badge badge-discount absolute left-3 top-3">{pct}% OFF</span>}
+        {pct > 0 && (
+          <span className="badge badge-discount absolute left-3 top-3 shadow-sm font-bold">
+            {pct}% OFF
+          </span>
+        )}
         <span className="absolute right-3 top-3">
           {product.type === "medicine" ? (
             product.prescriptionRequired ? (
-              <span className="badge badge-rx"><FileText className="h-3 w-3" /> Rx</span>
+              <span className="badge badge-rx shadow-sm"><FileText className="h-3 w-3" /> Rx</span>
             ) : (
-              <span className="badge badge-otc">OTC</span>
+              <span className="badge badge-otc shadow-sm">OTC</span>
             )
           ) : product.veg ? (
-            <span className="badge badge-otc text-primary">🌿 Veg</span>
+            <span className="badge badge-otc text-emerald-700 font-bold bg-white/90 backdrop-blur-sm shadow-sm">🌿 Veg</span>
           ) : null}
         </span>
         {outOfStock && (
-          <div className="absolute inset-x-0 bottom-0 bg-navy-deep/80 py-1.5 text-center text-xs font-bold uppercase tracking-wide text-white">
+          <div className="absolute inset-x-0 bottom-0 bg-navy-deep/85 py-1.5 text-center text-xs font-bold uppercase tracking-wide text-white">
             Out of stock
           </div>
         )}
@@ -47,7 +62,7 @@ export default function ProductCard({ product }) {
 
       <div className="flex flex-1 flex-col p-4">
         <p className="text-[11px] font-bold uppercase tracking-wide text-on-surface-variant">{product.brand}</p>
-        <h3 className="mt-0.5 line-clamp-2 min-h-[2.5rem] font-display text-[15px] font-bold leading-tight text-on-surface">
+        <h3 className="mt-0.5 line-clamp-2 min-h-[2.5rem] font-display text-[15px] font-bold leading-tight text-on-surface group-hover:text-primary transition-colors">
           {product.name}
         </h3>
 
@@ -74,8 +89,15 @@ export default function ProductCard({ product }) {
               Notify me
             </Button>
           ) : qty > 0 ? (
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-semibold text-primary">In cart</span>
+            <motion.div
+              layout
+              initial={{ scale: 0.95 }}
+              animate={{ scale: 1 }}
+              className="flex items-center justify-between gap-2 bg-emerald-50/70 p-1.5 rounded-xl border border-emerald-200/60"
+            >
+              <span className="text-xs font-bold text-primary flex items-center gap-1">
+                <Check className="h-3.5 w-3.5" /> Added ({qty})
+              </span>
               <QuantitySelector
                 size="sm"
                 quantity={qty}
@@ -83,14 +105,16 @@ export default function ProductCard({ product }) {
                 onDecrease={() => updateItem(product, qty - 1)}
                 onDelete={() => removeItem(product)}
               />
-            </div>
+            </motion.div>
           ) : (
-            <Button variant="primary" size="sm" fullWidth onClick={() => addItem(product)}>
-              <ShoppingCart className="h-4 w-4" /> Add to cart
-            </Button>
+            <motion.div whileTap={{ scale: 0.97 }}>
+              <Button variant="primary" size="sm" fullWidth onClick={() => addItem(product)}>
+                <ShoppingCart className="h-4 w-4" /> Add to cart
+              </Button>
+            </motion.div>
           )}
         </div>
       </div>
-    </article>
+    </motion.article>
   );
 }
