@@ -1,6 +1,7 @@
 // Firebase Client Initialization for SubhOne
-// Supports Google Sign-In, Phone OTP Authentication & Firebase Auth Providers
+// Supports Google Sign-In, Phone OTP Authentication & Firebase Analytics
 import { initializeApp, getApps, getApp } from "firebase/app";
+import { getAnalytics, isSupported } from "firebase/analytics";
 import {
   getAuth,
   GoogleAuthProvider,
@@ -12,18 +13,32 @@ import {
   signOut,
 } from "firebase/auth";
 
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyDummyKeyReplaceWithActual",
+export const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyDFOfxU_92sQLnNFneUPVaspWp0yRdhXZU",
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "subhone-8f3f2.firebaseapp.com",
+  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL || "https://subhone-8f3f2-default-rtdb.firebaseio.com",
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "subhone-8f3f2",
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "subhone-8f3f2.firebasestorage.app",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "100000000000",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:100000000000:web:abcdef123456",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "909179742332",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:909179742332:web:de8a5138aed2da1aebc1f9",
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-CVDPHRZ7M3",
 };
 
 // Initialize Firebase only once
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+export const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 export const auth = getAuth(app);
+
+// Safe Analytics Initialization in browser environment
+export let analytics = null;
+if (typeof window !== "undefined") {
+  isSupported().then((supported) => {
+    if (supported) {
+      analytics = getAnalytics(app);
+    }
+  }).catch((err) => {
+    console.debug("Firebase analytics not initialized in this context:", err);
+  });
+}
 
 // Configure Google Provider
 export const googleProvider = new GoogleAuthProvider();
