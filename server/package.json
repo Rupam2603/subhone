@@ -11,7 +11,8 @@
     "dev": "nodemon src/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:nodb": "node --require ./tests/_shim.cjs --test tests/config/env.test.js tests/middleware/errorHandler.test.js",
+    "test:nodb": "node --require ./tests/_shim.cjs --test tests/config/env.test.js tests/middleware/errorHandler.test.js tests/middleware/rateLimit.test.js",
+    "db:check": "node src/scripts/dbCheck.js",
     "seed": "node src/scripts/seed.js",
     "verify": "npm run test"
   },

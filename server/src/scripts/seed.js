@@ -3,13 +3,15 @@ const mongoose = require("mongoose");
 const { connectDb } = require("../config/db");
 const { loadEnv } = require("../config/env");
 
+const bcrypt = require("bcrypt");
 const Product = require("../models/Product");
 const LabTest = require("../models/LabTest");
 const Coupon = require("../models/Coupon");
+const User = require("../models/User");
 
-const medicines = require("../data/medicines");
-const supplements = require("../data/supplements");
-const labTests = require("../data/labTests");
+const { medicines } = require("../data/medicines");
+const { supplements } = require("../data/supplements");
+const { labTests } = require("../data/labTests");
 
 // Convert rupees to paise
 function mapItem(item) {
@@ -57,6 +59,18 @@ async function seed() {
 
   console.log("Seeding coupons...");
   await Coupon.insertMany(coupons);
+
+  if (cfg.SEED_ADMIN_EMAIL && cfg.SEED_ADMIN_PASSWORD) {
+    console.log("Seeding admin user...");
+    await User.deleteMany({ email: cfg.SEED_ADMIN_EMAIL });
+    const passwordHash = await bcrypt.hash(cfg.SEED_ADMIN_PASSWORD, 10);
+    await User.create({
+      name: "Admin User",
+      email: cfg.SEED_ADMIN_EMAIL,
+      passwordHash,
+      role: "ADMIN",
+    });
+  }
 
   console.log("Seed complete!");
   await mongoose.disconnect();
