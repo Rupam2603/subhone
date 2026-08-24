@@ -68,7 +68,10 @@ function readGuestId(req) {
   return typeof value === "string" && value ? value : null;
 }
 
+// GUEST_COOKIE is deliberately not exported. Its only legitimate reader is
+// readGuestId above; handing the name out again is how a future caller ends up
+// back at req.cookies, silently accepting the unsigned values signing rejects.
 module.exports = {
   setAuthCookies, clearAuthCookies, setGuestCookie, clearGuestCookie, readGuestId,
-  GUEST_COOKIE, ACCESS_COOKIE, REFRESH_COOKIE,
+  ACCESS_COOKIE, REFRESH_COOKIE,
 };
