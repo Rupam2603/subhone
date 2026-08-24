@@ -31,6 +31,10 @@ const userSchema = new mongoose.Schema(
     name: { type: String, required: true },
     email: { type: String, sparse: true, unique: true },
     phone: { type: String, sparse: true, unique: true },
+    // Proof that the number was actually held, not merely typed in. Only a consumed
+    // OTP challenge sets it, so it — not `phone` — is what a later flow (order
+    // notifications, delivery calls) should trust. Null on an email-only account.
+    phoneVerifiedAt: { type: Date, default: null },
     passwordHash: { type: String }, // Optional, since phone login uses OTP
     // Bumped to invalidate every outstanding access token (password change, forced
     // sign-out). tokenService puts it in the `ver` claim; attachUser compares them.

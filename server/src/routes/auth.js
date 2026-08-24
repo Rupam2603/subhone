@@ -5,11 +5,17 @@ const router = express.Router();
 const authService = require("../services/authService");
 const tokenService = require("../services/tokenService");
 const cartService = require("../services/cartService");
+const otpService = require("../services/otpService");
+const User = require("../models/User");
+// The one E.164 pattern, shared with the model and OtpChallenge rather than copied.
+const { E164 } = User;
 const validate = require("../middleware/validate");
 const requireAuth = require("../middleware/requireAuth");
 const asyncHandler = require("../utils/asyncHandler");
 const AppError = require("../utils/AppError");
-const { loginLimiter } = require("../middleware/rateLimit");
+const {
+  loginLimiter, otpRequestLimiter, otpIpLimiter, otpVerifyLimiter,
+} = require("../middleware/rateLimit");
 const {
   setAuthCookies, clearAuthCookies, clearGuestCookie, GUEST_COOKIE, REFRESH_COOKIE,
 } = require("../utils/cookies");
@@ -61,6 +67,58 @@ router.post("/logout", asyncHandler(async (req, res) => {
   clearAuthCookies(res);
   return res.status(204).end();
 }));
+
+// ── Phone OTP ──────────────────────────────────────────────────────────────────
+// One challenge shape serves both verification routes; the difference is whether the
+// verified number resolves an identity (/otp/verify) or is attached to the identity
+// the request already carries (/link-phone).
+const otpVerifyBody = z.object({
+  challengeId: z.string().min(1),
+  code: z.string().regex(/^\d{6}$/, "Enter the 6-digit code"),
+});
+
+// Two ceilings, because they stop different attacks: per-phone stops one number being
+// spammed with texts, per-IP stops one host enumerating many numbers. Both run ahead
+// of validate() on purpose — a malformed phone must still cost the caller quota, or
+// probing is free.
+router.post("/otp/request", otpIpLimiter, otpRequestLimiter,
+  validate({ body: z.object({
+    phone: z.string().regex(E164, "Enter a phone number with country code, e.g. +919830000000"),
+  }) }),
+  // 202, not 200: the code has been handed to the SMS provider, and whether it ever
+  // reaches the handset is not something this response can promise.
+  asyncHandler(async (req, res) =>
+    res.status(202).json(await otpService.requestOtp(req.body.phone))));
+
+// A login endpoint, so it resolves the account from the *phone*, never from any
+// session the request happens to carry. Signing in as someone else while signed in is
+// a legitimate thing to do; silently editing the current account is not.
+router.post("/otp/verify", otpVerifyLimiter, validate({ body: otpVerifyBody }),
+  asyncHandler(async (req, res) => {
+    const { phone } = await otpService.verifyOtp(req.body);
+    const { user } = await authService.findOrCreateByPhone(phone);
+    // 200 even when the account was just created: to the caller this is one flow, and
+    // leaking "this number was new" tells an enumerator which numbers are registered.
+    return establishSession(req, res, user);
+  }));
+
+// The identity-upgrade half: an existing account gains a verified number. No new
+// session is issued — the caller is already signed in and stays signed in as the
+// same user, so the cookies in play remain valid.
+router.post("/link-phone", requireAuth, otpVerifyLimiter, validate({ body: otpVerifyBody }),
+  asyncHandler(async (req, res) => {
+    const { phone } = await otpService.verifyOtp(req.body);
+    // `phone` is a sparse unique index, so without this check a taken number would
+    // surface as a raw duplicate-key 500 instead of an answerable error.
+    const owner = await User.findOne({ phone });
+    if (owner && String(owner._id) !== String(req.user._id)) {
+      throw new AppError(409, "PHONE_TAKEN", "That number is already linked to another account.");
+    }
+    req.user.phone = phone;
+    req.user.phoneVerifiedAt = new Date();
+    await req.user.save();
+    return res.json({ user: req.user });
+  }));
 
 router.get("/me", requireAuth, (req, res) => res.json({ user: req.user }));
 
