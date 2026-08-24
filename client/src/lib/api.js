@@ -77,6 +77,7 @@ export const api = {
   // Auth
   register: (body) => request(`/auth/register`, { method: "POST", body: JSON.stringify(body) }),
   login: (body) => request(`/auth/login`, { method: "POST", body: JSON.stringify(body) }),
+  firebaseAuth: (body) => request(`/auth/firebase`, { method: "POST", body: JSON.stringify(body) }),
   logout: () => request(`/auth/logout`, { method: "POST" }),
   refresh: () => request(`/auth/refresh`, { method: "POST" }),
   me: () => request(`/auth/me`),

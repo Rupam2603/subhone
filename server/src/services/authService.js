@@ -85,14 +85,75 @@ async function findOrCreateByPhone(phone, attempt = 0) {
   }
 }
 
+async function loginOrRegisterWithFirebase({ idToken, name, email, phone }) {
+  let verifiedEmail = email ? String(email).toLowerCase().trim() : null;
+  let verifiedName = name ? String(name).trim() : null;
+  let verifiedPhone = phone ? String(phone).trim() : null;
+
+  // Inspect claims from Google / Firebase ID token
+  try {
+    const parts = String(idToken).split(".");
+    if (parts.length === 3) {
+      const payload = JSON.parse(Buffer.from(parts[1], "base64").toString("utf8"));
+      if (payload.email) verifiedEmail = String(payload.email).toLowerCase().trim();
+      if (payload.name && !verifiedName) verifiedName = String(payload.name).trim();
+      if (payload.phone_number && !verifiedPhone) verifiedPhone = String(payload.phone_number).trim();
+    }
+  } catch (err) {
+    // Decoding fallback
+  }
+
+  if (!verifiedEmail && !verifiedPhone) {
+    throw new AppError(400, "INVALID_FIREBASE_PAYLOAD", "No email or phone number associated with this Google / Firebase account.");
+  }
+
+  // 1. Look up existing user
+  let user = null;
+  if (verifiedEmail) {
+    user = await User.findOne({ email: verifiedEmail });
+  }
+  if (!user && verifiedPhone) {
+    user = await User.findOne({ phone: verifiedPhone });
+  }
+
+  if (user) {
+    if (user.disabledAt) throw new AppError(403, "DISABLED", "That account is disabled.");
+    let changed = false;
+    if (!user.phone && verifiedPhone) {
+      user.phone = verifiedPhone;
+      user.phoneVerifiedAt = new Date();
+      changed = true;
+    }
+    if (!user.name && verifiedName) {
+      user.name = verifiedName;
+      changed = true;
+    }
+    if (changed) await user.save();
+    return user;
+  }
+
+  // 2. Register first-time Google / Firebase user
+  user = await User.create({
+    name: verifiedName || (verifiedEmail ? verifiedEmail.split("@")[0] : "SubhOne Customer"),
+    email: verifiedEmail || undefined,
+    phone: verifiedPhone || undefined,
+    phoneVerifiedAt: verifiedPhone ? new Date() : null,
+  });
+
+  return user;
+}
+
 async function changePassword(user, newPassword) {
   user.passwordHash = await hashPassword(newPassword);
-  // Invalidates every outstanding access token: attachUser compares this against
-  // the token's `ver` claim, so sessions elsewhere stop working immediately.
   user.tokenVersion = (user.tokenVersion || 0) + 1;
   return user.save();
 }
 
 module.exports = {
-  register, login, findOrCreateByPhone, changePassword, ROUNDS: BCRYPT_ROUNDS,
+  register,
+  login,
+  findOrCreateByPhone,
+  loginOrRegisterWithFirebase,
+  changePassword,
+  ROUNDS: BCRYPT_ROUNDS,
 };

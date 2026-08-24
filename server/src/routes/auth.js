@@ -54,6 +54,17 @@ router.post("/login", loginLimiter,
   asyncHandler(async (req, res) =>
     establishSession(req, res, await authService.login(req.body))));
 
+router.post(["/firebase", "/google"],
+  validate({ body: z.object({
+    idToken: z.string().min(1),
+    name: z.string().optional(),
+    email: z.string().email().optional(),
+    phone: z.string().optional(),
+    photoURL: z.string().optional(),
+  }) }),
+  asyncHandler(async (req, res) =>
+    establishSession(req, res, await authService.loginOrRegisterWithFirebase(req.body))));
+
 router.post("/refresh", asyncHandler(async (req, res) => {
   const raw = req.cookies && req.cookies[REFRESH_COOKIE];
   if (!raw) throw new AppError(401, "SESSION_INVALID", "Your session is no longer valid.");

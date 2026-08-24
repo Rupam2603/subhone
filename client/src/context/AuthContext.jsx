@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import api, { onAuthLost } from "../lib/api";
+import { signInWithGoogle, firebaseSignOut } from "../lib/firebase";
 
 export const AuthContext = createContext(null);
 
@@ -7,8 +8,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // An anonymous visitor is the common case, so a 401 here is an answer,
-  // not a failure worth surfacing.
+  // Check current session
   useEffect(() => {
     let active = true;
     api.me()
@@ -18,8 +18,7 @@ export function AuthProvider({ children }) {
     return () => { active = false; };
   }, []);
 
-  // The api layer tells us when a refresh failed, so a session that dies in
-  // the background does not leave a stale name in the header.
+  // When refresh fails
   useEffect(() => onAuthLost(() => setUser(null)), []);
 
   const login = useCallback(async (creds) => {
@@ -34,6 +33,20 @@ export function AuthProvider({ children }) {
     return data.user;
   }, []);
 
+  // Google Firebase Authentication
+  const loginWithGoogle = useCallback(async () => {
+    const { user: fbUser, idToken } = await signInWithGoogle();
+    const data = await api.firebaseAuth({
+      idToken,
+      name: fbUser.name,
+      email: fbUser.email,
+      phone: fbUser.phone,
+      photoURL: fbUser.photoURL,
+    });
+    setUser(data.user);
+    return data.user;
+  }, []);
+
   const requestOtp = useCallback((phone) => api.requestOtp(phone), []);
 
   const verifyOtp = useCallback(async (body) => {
@@ -43,12 +56,17 @@ export function AuthProvider({ children }) {
   }, []);
 
   const logout = useCallback(async () => {
-    try { await api.logout(); } finally { setUser(null); }
+    try {
+      await api.logout();
+      await firebaseSignOut();
+    } finally {
+      setUser(null);
+    }
   }, []);
 
   const value = {
     user, loading, isAuthenticated: Boolean(user),
-    login, register, logout, requestOtp, verifyOtp,
+    login, register, loginWithGoogle, logout, requestOtp, verifyOtp,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
