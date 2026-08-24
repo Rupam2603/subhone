@@ -31,11 +31,19 @@ function clearAuthCookies(res) {
   res.clearCookie(REFRESH_COOKIE, { ...base(), path: "/api/auth" });
 }
 
+// Path "/" because the cart is read from every page. The lifetime tracks
+// GUEST_CART_TTL_DAYS — the same window the Cart model's TTL index uses — so the
+// cookie and the cart it points at cannot expire on different days.
+function setGuestCookie(res, guestId) {
+  const days = Number(process.env.GUEST_CART_TTL_DAYS || 30);
+  res.cookie(GUEST_COOKIE, guestId, { ...base(), path: "/", maxAge: days * DAY_MS });
+}
+
 function clearGuestCookie(res) {
   res.clearCookie(GUEST_COOKIE, { ...base(), path: "/" });
 }
 
 module.exports = {
-  setAuthCookies, clearAuthCookies, clearGuestCookie,
+  setAuthCookies, clearAuthCookies, setGuestCookie, clearGuestCookie,
   GUEST_COOKIE, ACCESS_COOKIE, REFRESH_COOKIE,
 };
