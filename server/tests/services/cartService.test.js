@@ -168,25 +168,48 @@ describe("cartService", () => {
     ).rejects.toThrow(/isn't in your cart/i);
   });
 
+  // The brief asserted these on /not available|not found/i, which its own message
+  // ("That item is no longer available.") does not satisfy. The machine code is the
+  // real contract anyway — the prose is free to be written for humans.
+  async function expectUnavailable(promise) {
+    let caught;
+    try {
+      await promise;
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeDefined();
+    expect(caught.code).toBe("ITEM_NOT_FOUND");
+    expect(caught.status).toBe(404);
+  }
+
   it("rejects an unknown product", async () => {
-    await expect(
+    await expectUnavailable(
       cartService.addItem({ userId: user._id }, { id: "nope", type: "medicine", quantity: 1 })
-    ).rejects.toThrow(/not available|not found/i);
+    );
   });
 
   it("rejects an out-of-stock product", async () => {
     // `inStock: false` is this catalog's only unavailability flag — there is no
     // `isActive` field and no numeric stock count.
     await Product.updateOne({ _id: med._id }, { $set: { inStock: false } });
-    await expect(
+    await expectUnavailable(
       cartService.addItem({ userId: user._id }, { id: med.id, type: "medicine", quantity: 1 })
-    ).rejects.toThrow(/not available|not found/i);
+    );
   });
 
   it("rejects a product asked for under the wrong type", async () => {
-    await expect(
+    await expectUnavailable(
       cartService.addItem({ userId: user._id }, { id: med.id, type: "supplement", quantity: 1 })
-    ).rejects.toThrow(/not available|not found/i);
+    );
+  });
+
+  it("rejects an id that is not a plain string", async () => {
+    // A String()-coerced id turns an injected operator into a literal that matches
+    // nothing, rather than into a query Mongo would honour.
+    await expectUnavailable(
+      cartService.addItem({ userId: user._id }, { id: { $ne: null }, type: "medicine", quantity: 1 })
+    );
   });
 
   it("rejects an unrecognised item type", async () => {
