@@ -17,7 +17,7 @@ const {
   loginLimiter, otpRequestLimiter, otpIpLimiter, otpVerifyLimiter,
 } = require("../middleware/rateLimit");
 const {
-  setAuthCookies, clearAuthCookies, clearGuestCookie, GUEST_COOKIE, REFRESH_COOKIE,
+  setAuthCookies, clearAuthCookies, clearGuestCookie, readGuestId, REFRESH_COOKIE,
 } = require("../utils/cookies");
 
 // Recorded on the Session so the account page can show where you're signed in.
@@ -29,7 +29,9 @@ async function establishSession(req, res, user, status = 200) {
   const { token: refreshToken } = await tokenService.issueRefreshToken(user, meta(req));
   setAuthCookies(res, { accessToken, refreshToken });
 
-  const guestId = req.cookies && req.cookies[GUEST_COOKIE];
+  // Signed value only: an unsigned or tampered so_gid must not be able to nominate
+  // which cart gets folded into the account that is signing in.
+  const guestId = readGuestId(req);
   if (guestId) {
     await cartService.mergeGuestCart({ guestId, userId: user._id });
     clearGuestCookie(res);

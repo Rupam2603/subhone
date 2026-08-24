@@ -38,7 +38,10 @@ const origins = String(cfg.CORS_ORIGIN)
 // so the allow-list from env is the origin of record.
 app.use(cors({ origin: origins, credentials: true }));
 app.use(express.json({ limit: "1mb" }));
-app.use(cookieParser());
+// The secret signs the so_gid guest-cart cookie, preventing session-fixation
+// from a planted cookie. Auth cookies (so_at, so_rt) are JWTs that carry their
+// own cryptographic verification and do not need to be signed here in addition.
+app.use(cookieParser(cfg.JWT_SECRET));
 
 // Defence in depth behind CORS: rejects mutating requests carrying a foreign
 // Origin, which a browser preflight would normally have stopped first.

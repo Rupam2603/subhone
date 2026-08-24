@@ -1,9 +1,9 @@
 const crypto = require("crypto");
-const { GUEST_COOKIE, setGuestCookie } = require("../utils/cookies");
+const { setGuestCookie, readGuestId } = require("../utils/cookies");
 
-// Shape of crypto.randomUUID(). Checked rather than trusted because the cookie is
-// attacker-controlled: possessing the id *is* possessing the cart, so an id chosen
-// by someone else (say a planted "so_gid=1") must not be honoured as an owner. An
+// Shape of crypto.randomUUID(). The cookie is signed, so a value that reaches here
+// was minted by this server — but the check is kept as the second lock: it costs
+// nothing and it is what holds if the signing secret is ever mis-wired. An
 // unrecognised value is replaced, not rejected — a mangled cookie should cost the
 // visitor their guest cart, not their ability to shop.
 const GUEST_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -24,7 +24,7 @@ module.exports = function attachCartOwner(req, res, next) {
     return next();
   }
 
-  const existing = req.cookies && req.cookies[GUEST_COOKIE];
+  const existing = readGuestId(req);
   let guestId = GUEST_ID.test(String(existing || "")) ? existing : null;
   if (!guestId) {
     guestId = crypto.randomUUID();

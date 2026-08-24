@@ -165,3 +165,83 @@ describe("cart routes", () => {
     expect(guestCookie(second)).toBeNull();
   });
 });
+
+// Holding the guest id is holding the cart, so the id must be one this server
+// minted. Signing is what makes that true; these tests are the reason it stays
+// true, because every failure below looks like success from the outside — the
+// visitor gets a working, merely empty, cart either way.
+describe("guest cart cookie signing", () => {
+  // "so_gid=s%3A<uuid>.<signature>" → "<uuid>"
+  const plainId = (pair) => {
+    const value = decodeURIComponent(pair.split("=")[1]);
+    return value.slice(2, value.lastIndexOf("."));
+  };
+
+  it("signs the guest cookie it mints", async () => {
+    const pair = guestCookie(await request(app).get("/api/cart"));
+    // cookie-parser's marker for a signed value, percent-encoded by res.cookie.
+    expect(pair.startsWith("so_gid=s%3A")).toBe(true);
+    expect(plainId(pair)).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+    );
+  });
+
+  it("ignores a bare guest id nobody signed", async () => {
+    const owner = await addMed(2);
+    const id = plainId(guestCookie(owner));
+
+    // The attack: plant the victim's id — or any id — as a plain cookie value.
+    const res = await request(app).get("/api/cart").set("Cookie", `so_gid=${id}`);
+    expect(res.status).toBe(200);
+    expect(res.body.itemCount).toBe(0); // not the owner's cart
+    expect(guestCookie(res)).toBeTruthy(); // handed a fresh id of its own
+    expect(plainId(guestCookie(res))).not.toBe(id);
+  });
+
+  it("ignores a guest id whose signature does not verify", async () => {
+    const owner = await addMed(2);
+    const pair = guestCookie(owner);
+    // Flip the last character of the signature, leaving the id itself intact.
+    const tampered = pair.slice(0, -1) + (pair.endsWith("A") ? "B" : "A");
+
+    const res = await request(app).get("/api/cart").set("Cookie", tampered);
+    expect(res.body.itemCount).toBe(0);
+    expect(plainId(guestCookie(res))).not.toBe(plainId(pair));
+  });
+
+  it("still honours its own signed cookie across requests", async () => {
+    // The control: signing must not have broken the case it exists to protect.
+    const owner = await addMed(2);
+    const res = await request(app).get("/api/cart").set("Cookie", guestCookie(owner));
+    expect(res.body.itemCount).toBe(2);
+    expect(guestCookie(res)).toBeNull();
+  });
+
+  it("refuses to merge an unsigned guest id into an account on login", async () => {
+    const victim = await addMed(2);
+    const id = plainId(guestCookie(victim));
+
+    // Registering while presenting a planted id: if establishSession trusted
+    // req.cookies, someone else's cart would be absorbed into this account.
+    const reg = await request(app).post("/api/auth/register")
+      .set("Cookie", `so_gid=${id}`)
+      .send({ name: "Attacker", email: "a@example.com", password: "correct-horse-1" });
+    expect(reg.status).toBe(201);
+
+    const mine = await request(app).get("/api/cart").set("Cookie", accessCookie(reg));
+    expect(mine.body.itemCount).toBe(0);
+
+    // And the victim's cart is still there — an unsigned id must not delete it either.
+    const theirs = await request(app).get("/api/cart").set("Cookie", guestCookie(victim));
+    expect(theirs.body.itemCount).toBe(2);
+  });
+
+  it("merges its own signed guest cart on login", async () => {
+    const guest = await addMed(2);
+    const reg = await request(app).post("/api/auth/register")
+      .set("Cookie", guestCookie(guest))
+      .send({ name: "Subhasis", email: "s@example.com", password: "correct-horse-1" });
+    const mine = await request(app).get("/api/cart").set("Cookie", accessCookie(reg));
+    expect(mine.body.itemCount).toBe(2);
+  });
+});

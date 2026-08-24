@@ -34,16 +34,41 @@ function clearAuthCookies(res) {
 // Path "/" because the cart is read from every page. The lifetime tracks
 // GUEST_CART_TTL_DAYS — the same window the Cart model's TTL index uses — so the
 // cookie and the cart it points at cannot expire on different days.
+//
+// signed:true because possessing this id *is* possessing the cart. Unsigned, an
+// attacker who could plant a cookie (via XSS or a sibling-subdomain foothold)
+// could pin a visitor onto a cart the attacker also holds, and watch what they
+// buy — or have their items merged into an account on login. The signature makes
+// an id the server did not mint unusable. Readers must use req.signedCookies.
 function setGuestCookie(res, guestId) {
   const days = Number(process.env.GUEST_CART_TTL_DAYS || 30);
-  res.cookie(GUEST_COOKIE, guestId, { ...base(), path: "/", maxAge: days * DAY_MS });
+  res.cookie(GUEST_COOKIE, guestId, {
+    ...base(), path: "/", maxAge: days * DAY_MS, signed: true,
+  });
 }
 
+// Signed or not, the browser is told to drop the same name at the same path, so
+// this needs no signed flag — clearCookie only ever writes an expiry.
 function clearGuestCookie(res) {
   res.clearCookie(GUEST_COOKIE, { ...base(), path: "/" });
 }
 
+// The one place that knows the guest id arrives signed. Everything that needs the
+// id calls this instead of reaching into req.cookies, so no future reader can
+// silently accept an unsigned value.
+//
+// cookie-parser puts a *failed* signature in req.signedCookies as `false`, and
+// leaves a cookie that was never signed at all in req.cookies. Both are treated
+// as "no guest id": callers mint a fresh one. That means the deploy of signing
+// orphans guest carts created before it, which costs those visitors an
+// unsubmitted cart once — the alternative is honouring exactly the unsigned
+// values this change exists to reject.
+function readGuestId(req) {
+  const value = req.signedCookies && req.signedCookies[GUEST_COOKIE];
+  return typeof value === "string" && value ? value : null;
+}
+
 module.exports = {
-  setAuthCookies, clearAuthCookies, setGuestCookie, clearGuestCookie,
+  setAuthCookies, clearAuthCookies, setGuestCookie, clearGuestCookie, readGuestId,
   GUEST_COOKIE, ACCESS_COOKIE, REFRESH_COOKIE,
 };
