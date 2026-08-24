@@ -7,11 +7,23 @@ const AppError = require("../utils/AppError");
 const TTL_MS = 5 * 60 * 1000;
 const MAX_ATTEMPTS = 5;
 
+// Normalize standard 10-digit Indian numbers to E.164
+function normalizePhone(phone) {
+  if (!phone) return "";
+  const cleaned = String(phone).trim();
+  const digits = cleaned.replace(/\D/g, "");
+  if (digits.length === 10) return `+91${digits}`;
+  if (cleaned.startsWith("+")) return cleaned;
+  if (digits.length > 10) return `+${digits}`;
+  return cleaned;
+}
+
 // randomInt is the CSPRNG variant — Math.random would make codes guessable from a
 // couple of observed samples.
 const generateCode = () => String(crypto.randomInt(0, 1_000_000)).padStart(6, "0");
 
-async function requestOtp(phone, purpose = "login") {
+async function requestOtp(rawPhone, purpose = "login") {
+  const phone = normalizePhone(rawPhone);
   const provider = getProvider(); // resolve before writing anything
   const code = generateCode();
   const challenge = await OtpChallenge.create({
@@ -35,16 +47,22 @@ async function requestOtp(phone, purpose = "login") {
   };
 }
 
-async function verifyOtp({ challengeId, code, purpose }) {
-  // .catch swallows a CastError from a malformed id — an unparseable challengeId is
-  // just a wrong code, not a 500.
-  const challenge = await OtpChallenge.findById(challengeId).catch(() => null);
-  const invalid = new AppError(400, "OTP_INVALID", "That code isn't right.");
+async function verifyOtp({ challengeId, phone: rawPhone, code, purpose }) {
+  let challenge = null;
+  if (challengeId) {
+    challenge = await OtpChallenge.findById(challengeId).catch(() => null);
+  }
+  if (!challenge && rawPhone) {
+    const phone = normalizePhone(rawPhone);
+    challenge = await OtpChallenge.findOne({
+      phone,
+      ...(purpose ? { purpose } : {}),
+      consumedAt: null,
+    }).sort({ createdAt: -1 });
+  }
+
+  const invalid = new AppError(400, "OTP_INVALID", "That verification code isn't right.");
   if (!challenge) throw invalid;
-  // Checked before anything is consumed, so presenting a link code at the login
-  // endpoint does not burn it. A code is only valid for the flow it was asked for:
-  // otherwise anyone who talks a user into reading out a "confirm your number" code
-  // can spend it as a sign-in.
   if (purpose && challenge.purpose !== purpose) throw invalid;
   if (challenge.consumedAt) {
     throw new AppError(400, "OTP_INVALID", "That code has already been used. Request a new one.");
@@ -67,4 +85,4 @@ async function verifyOtp({ challengeId, code, purpose }) {
   return { phone: challenge.phone, purpose: challenge.purpose };
 }
 
-module.exports = { requestOtp, verifyOtp, MAX_ATTEMPTS, TTL_MS };
+module.exports = { requestOtp, verifyOtp, normalizePhone, MAX_ATTEMPTS, TTL_MS };

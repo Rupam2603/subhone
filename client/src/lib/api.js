@@ -82,11 +82,11 @@ export const api = {
   me: () => request(`/auth/me`),
   
   // OTP
-  sendOtp: (phone) => request(`/otp/send`, { method: "POST", body: JSON.stringify({ phone }) }),
-  loginWithOtp: (phone, code) => request(`/otp/login`, { method: "POST", body: JSON.stringify({ phone, code }) }),
-  linkPhone: (phone, code) => request(`/otp/link`, { method: "POST", body: JSON.stringify({ phone, code }) }),
-  requestOtp: (phone) => request(`/otp/send`, { method: "POST", body: JSON.stringify({ phone }) }),
-  verifyOtp: (body) => request(`/otp/login`, { method: "POST", body: JSON.stringify(body) }),
+  sendOtp: (phone) => request(`/auth/otp/request`, { method: "POST", body: JSON.stringify({ phone }) }),
+  loginWithOtp: (phone, code) => request(`/auth/otp/verify`, { method: "POST", body: JSON.stringify({ phone, code }) }),
+  linkPhone: (challengeId, code) => request(`/auth/link-phone`, { method: "POST", body: JSON.stringify({ challengeId, code }) }),
+  requestOtp: (phone) => request(`/auth/otp/request`, { method: "POST", body: JSON.stringify({ phone }) }),
+  verifyOtp: (body) => request(`/auth/otp/verify`, { method: "POST", body: JSON.stringify(body) }),
 
   // Catalog
   getMedicines: (params) => request(`/medicines${qs(params)}`),

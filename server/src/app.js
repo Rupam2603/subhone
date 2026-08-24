@@ -58,6 +58,7 @@ app.get("/api/health", (req, res) =>
 );
 
 app.use("/api/auth", authRoutes);
+app.use("/api/otp", authRoutes);
 app.use("/api", catalogRoutes); // /api/medicines, /api/supplements, /api/products/:id, /api/brands
 app.use("/api/lab-tests", labTestRoutes);
 app.use("/api/cart", cartRoutes);

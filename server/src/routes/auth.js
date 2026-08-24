@@ -72,50 +72,40 @@ router.post("/logout", asyncHandler(async (req, res) => {
 }));
 
 // ── Phone OTP ──────────────────────────────────────────────────────────────────
-// One challenge shape serves both verification routes; the difference is whether the
-// verified number resolves an identity (/otp/verify) or is attached to the identity
-// the request already carries (/link-phone).
 const otpVerifyBody = z.object({
-  challengeId: z.string().min(1),
+  challengeId: z.string().optional(),
+  phone: z.string().optional(),
   code: z.string().regex(/^\d{6}$/, "Enter the 6-digit code"),
+}).refine((v) => v.challengeId || v.phone, { message: "Provide either challengeId or phone" });
+
+const handleOtpRequest = asyncHandler(async (req, res) => {
+  const purpose = req.body.purpose || "login";
+  const result = await otpService.requestOtp(req.body.phone, purpose);
+  return res.status(202).json(result);
 });
 
-// Two ceilings, because they stop different attacks: per-phone stops one number being
-// spammed with texts, per-IP stops one host enumerating many numbers. Both run ahead
-// of validate() on purpose — a malformed phone must still cost the caller quota, or
-// probing is free.
-router.post("/otp/request", otpIpLimiter, otpRequestLimiter,
+const handleOtpVerify = asyncHandler(async (req, res) => {
+  const { phone } = await otpService.verifyOtp({ ...req.body, purpose: "login" });
+  const { user } = await authService.findOrCreateByPhone(phone);
+  return establishSession(req, res, user);
+});
+
+// Both /otp/request and /otp/send supported (and direct /request & /send when mounted on /api/otp)
+router.post(["/otp/request", "/otp/send", "/request", "/send"], otpIpLimiter, otpRequestLimiter,
   validate({ body: z.object({
-    phone: z.string().regex(E164, "Enter a phone number with country code, e.g. +919830000000"),
-    // Defaults to login so the common case needs no field. A code is bound to the flow
-    // it was issued for and verifyOtp refuses to spend it on the other one.
+    phone: z.string().min(10, "Enter a valid mobile number"),
     purpose: z.enum(["login", "link_phone"]).optional().default("login"),
   }) }),
-  // 202, not 200: the code has been handed to the SMS provider, and whether it ever
-  // reaches the handset is not something this response can promise.
-  asyncHandler(async (req, res) =>
-    res.status(202).json(await otpService.requestOtp(req.body.phone, req.body.purpose))));
+  handleOtpRequest
+);
 
-// A login endpoint, so it resolves the account from the *phone*, never from any
-// session the request happens to carry. Signing in as someone else while signed in is
-// a legitimate thing to do; silently editing the current account is not.
-router.post("/otp/verify", otpVerifyLimiter, validate({ body: otpVerifyBody }),
-  asyncHandler(async (req, res) => {
-    const { phone } = await otpService.verifyOtp({ ...req.body, purpose: "login" });
-    const { user } = await authService.findOrCreateByPhone(phone);
-    // 200 even when the account was just created: to the caller this is one flow, and
-    // leaking "this number was new" tells an enumerator which numbers are registered.
-    return establishSession(req, res, user);
-  }));
+// Both /otp/verify and /otp/login supported (and direct /verify & /login when mounted on /api/otp)
+router.post(["/otp/verify", "/otp/login", "/verify"], otpVerifyLimiter, validate({ body: otpVerifyBody }), handleOtpVerify);
 
-// The identity-upgrade half: an existing account gains a verified number. No new
-// session is issued — the caller is already signed in and stays signed in as the
-// same user, so the cookies in play remain valid.
+// The identity-upgrade half: an existing account gains a verified number.
 router.post("/link-phone", requireAuth, otpVerifyLimiter, validate({ body: otpVerifyBody }),
   asyncHandler(async (req, res) => {
     const { phone } = await otpService.verifyOtp({ ...req.body, purpose: "link_phone" });
-    // `phone` is a sparse unique index, so without this check a taken number would
-    // surface as a raw duplicate-key 500 instead of an answerable error.
     const owner = await User.findOne({ phone });
     if (owner && String(owner._id) !== String(req.user._id)) {
       throw new AppError(409, "PHONE_TAKEN", "That number is already linked to another account.");
