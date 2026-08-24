@@ -14,8 +14,10 @@ const cookieValue = (res, name) => {
   return raw ? raw.split(";")[0].split("=")[1] : null;
 };
 
-const requestCode = async (phone = PHONE) => {
-  const res = await request(app).post("/api/auth/otp/request").send({ phone });
+const requestCode = async (phone = PHONE, purpose) => {
+  const res = await request(app)
+    .post("/api/auth/otp/request")
+    .send(purpose ? { phone, purpose } : { phone });
   expect(res.status).toBe(202);
   return res.body;
 };
@@ -77,12 +79,36 @@ describe("phone OTP", () => {
     const reg = await request(app).post("/api/auth/register")
       .send({ name: "Subhasis", email: "s@example.com", password: "correct-horse-1" });
     const at = cookieValue(reg, "so_at");
-    const { challengeId, devCode } = await requestCode();
+    const { challengeId, devCode } = await requestCode(PHONE, "link_phone");
     const res = await request(app).post("/api/auth/link-phone")
       .set("Cookie", `so_at=${at}`).send({ challengeId, code: devCode });
     expect(res.status).toBe(200);
     expect(res.body.user.phone).toBe(PHONE);
     expect(await User.countDocuments({})).toBe(1); // linked, not duplicated
+  });
+
+  // A code is bound to the flow it was issued for. Without this, talking a user into
+  // reading out a "confirm your number" code hands over a working sign-in.
+  it("refuses a link code at the login endpoint, and a login code at link-phone", async () => {
+    const linkCode = await requestCode(PHONE, "link_phone");
+    const asLogin = await request(app).post("/api/auth/otp/verify")
+      .send({ challengeId: linkCode.challengeId, code: linkCode.devCode });
+    expect(asLogin.status).toBe(400);
+    expect(asLogin.body.code).toBe("OTP_INVALID");
+
+    const reg = await request(app).post("/api/auth/register")
+      .send({ name: "Subhasis", email: "cross@example.com", password: "correct-horse-1" });
+    const loginCode = await requestCode(PHONE);
+    const asLink = await request(app).post("/api/auth/link-phone")
+      .set("Cookie", `so_at=${cookieValue(reg, "so_at")}`)
+      .send({ challengeId: loginCode.challengeId, code: loginCode.devCode });
+    expect(asLink.status).toBe(400);
+    expect(asLink.body.code).toBe("OTP_INVALID");
+
+    // Rejected before consumption, so the code still works in its own flow.
+    const stillGood = await request(app).post("/api/auth/otp/verify")
+      .send({ challengeId: loginCode.challengeId, code: loginCode.devCode });
+    expect(stillGood.status).toBe(200);
   });
 
   it("refuses to link a phone already owned by another account", async () => {
@@ -93,7 +119,7 @@ describe("phone OTP", () => {
     const reg = await request(app).post("/api/auth/register")
       .send({ name: "Other", email: "o@example.com", password: "correct-horse-1" });
     const at = cookieValue(reg, "so_at");
-    const next = await requestCode();
+    const next = await requestCode(PHONE, "link_phone");
     const res = await request(app).post("/api/auth/link-phone")
       .set("Cookie", `so_at=${at}`).send({ challengeId: next.challengeId, code: next.devCode });
     expect(res.status).toBe(409);

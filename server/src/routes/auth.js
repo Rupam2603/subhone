@@ -84,18 +84,21 @@ const otpVerifyBody = z.object({
 router.post("/otp/request", otpIpLimiter, otpRequestLimiter,
   validate({ body: z.object({
     phone: z.string().regex(E164, "Enter a phone number with country code, e.g. +919830000000"),
+    // Defaults to login so the common case needs no field. A code is bound to the flow
+    // it was issued for and verifyOtp refuses to spend it on the other one.
+    purpose: z.enum(["login", "link_phone"]).optional().default("login"),
   }) }),
   // 202, not 200: the code has been handed to the SMS provider, and whether it ever
   // reaches the handset is not something this response can promise.
   asyncHandler(async (req, res) =>
-    res.status(202).json(await otpService.requestOtp(req.body.phone))));
+    res.status(202).json(await otpService.requestOtp(req.body.phone, req.body.purpose))));
 
 // A login endpoint, so it resolves the account from the *phone*, never from any
 // session the request happens to carry. Signing in as someone else while signed in is
 // a legitimate thing to do; silently editing the current account is not.
 router.post("/otp/verify", otpVerifyLimiter, validate({ body: otpVerifyBody }),
   asyncHandler(async (req, res) => {
-    const { phone } = await otpService.verifyOtp(req.body);
+    const { phone } = await otpService.verifyOtp({ ...req.body, purpose: "login" });
     const { user } = await authService.findOrCreateByPhone(phone);
     // 200 even when the account was just created: to the caller this is one flow, and
     // leaking "this number was new" tells an enumerator which numbers are registered.
@@ -107,7 +110,7 @@ router.post("/otp/verify", otpVerifyLimiter, validate({ body: otpVerifyBody }),
 // same user, so the cookies in play remain valid.
 router.post("/link-phone", requireAuth, otpVerifyLimiter, validate({ body: otpVerifyBody }),
   asyncHandler(async (req, res) => {
-    const { phone } = await otpService.verifyOtp(req.body);
+    const { phone } = await otpService.verifyOtp({ ...req.body, purpose: "link_phone" });
     // `phone` is a sparse unique index, so without this check a taken number would
     // surface as a raw duplicate-key 500 instead of an answerable error.
     const owner = await User.findOne({ phone });

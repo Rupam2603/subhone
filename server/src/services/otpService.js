@@ -35,12 +35,17 @@ async function requestOtp(phone, purpose = "login") {
   };
 }
 
-async function verifyOtp({ challengeId, code }) {
+async function verifyOtp({ challengeId, code, purpose }) {
   // .catch swallows a CastError from a malformed id — an unparseable challengeId is
   // just a wrong code, not a 500.
   const challenge = await OtpChallenge.findById(challengeId).catch(() => null);
   const invalid = new AppError(400, "OTP_INVALID", "That code isn't right.");
   if (!challenge) throw invalid;
+  // Checked before anything is consumed, so presenting a link code at the login
+  // endpoint does not burn it. A code is only valid for the flow it was asked for:
+  // otherwise anyone who talks a user into reading out a "confirm your number" code
+  // can spend it as a sign-in.
+  if (purpose && challenge.purpose !== purpose) throw invalid;
   if (challenge.consumedAt) {
     throw new AppError(400, "OTP_INVALID", "That code has already been used. Request a new one.");
   }
