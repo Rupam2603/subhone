@@ -2,15 +2,37 @@ const User = require("../models/User");
 const AppError = require("../utils/AppError");
 const { hashPassword, verifyPassword, BCRYPT_ROUNDS } = require("../utils/hash");
 
-async function register({ name, email, password }) {
+async function register({ name, email, phone, password }) {
   const normalised = String(email).toLowerCase();
   // Checked up front so the caller gets EMAIL_TAKEN rather than a raw duplicate-key
   // error. The unique index on User.email is still the authority under a race.
   if (await User.findOne({ email: normalised })) {
     throw new AppError(409, "EMAIL_TAKEN", "An account with that email already exists.");
   }
+
+  let formattedPhone = null;
+  if (phone && String(phone).trim()) {
+    const digits = String(phone).replace(/\D/g, "");
+    if (digits.length === 10) {
+      formattedPhone = `+91${digits}`;
+    } else if (String(phone).trim().startsWith("+")) {
+      formattedPhone = String(phone).trim();
+    } else if (digits.length > 10) {
+      formattedPhone = `+${digits}`;
+    }
+    if (formattedPhone) {
+      const existingPhone = await User.findOne({ phone: formattedPhone });
+      if (existingPhone) {
+        throw new AppError(409, "PHONE_TAKEN", "An account with that mobile number already exists.");
+      }
+    }
+  }
+
   return User.create({
-    name, email: normalised, passwordHash: await hashPassword(password),
+    name,
+    email: normalised,
+    phone: formattedPhone || undefined,
+    passwordHash: await hashPassword(password),
   });
 }
 

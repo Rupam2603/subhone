@@ -43,6 +43,7 @@ router.post("/register",
   validate({ body: z.object({
     name: z.string().trim().min(2),
     email: z.string().email(),
+    phone: z.string().trim().optional(),
     password: z.string().min(8, "Use at least 8 characters"),
   }) }),
   asyncHandler(async (req, res) =>
