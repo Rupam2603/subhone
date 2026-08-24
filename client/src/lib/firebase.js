@@ -63,7 +63,28 @@ export async function signInWithGoogle() {
       idToken,
     };
   } catch (error) {
-    console.error("Google Sign-In Error:", error);
+    console.error("Google Sign-In Error Code:", error.code, error.message);
+    if (error.code === "auth/popup-closed-by-user" || error.code === "auth/cancelled-popup-request") {
+      const err = new Error("Sign-in window was closed. Click again when you are ready.");
+      err.code = error.code;
+      throw err;
+    } else if (error.code === "auth/operation-not-allowed") {
+      const err = new Error(
+        "Google Sign-In is not enabled yet in your Firebase Console. Please visit Firebase Console > Authentication > Sign-in method and enable Google."
+      );
+      err.code = error.code;
+      throw err;
+    } else if (error.code === "auth/unauthorized-domain") {
+      const err = new Error(
+        "This domain is not authorized in Firebase. Please add 'localhost' to Authorized Domains in Firebase Console > Authentication > Settings > Authorized domains."
+      );
+      err.code = error.code;
+      throw err;
+    } else if (error.code === "auth/popup-blocked") {
+      const err = new Error("Google sign-in pop-up was blocked by your browser. Please allow pop-ups for localhost and try again.");
+      err.code = error.code;
+      throw err;
+    }
     throw error;
   }
 }
