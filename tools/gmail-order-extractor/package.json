@@ -1,0 +1,38 @@
+{
+  "name": "gmail-order-extractor",
+  "version": "1.0.0",
+  "description": "Extracts order details from Gmail and generates PDF & Markdown summary reports",
+  "main": "src/index.js",
+  "bin": {
+    "gmail-orders": "./bin/cli.js"
+  },
+  "scripts": {
+    "start": "node bin/cli.js",
+    "auth": "node bin/cli.js auth",
+    "fetch": "node bin/cli.js fetch",
+    "parse": "node bin/cli.js parse",
+    "export": "node bin/cli.js export",
+    "run": "node bin/cli.js run",
+    "test": "node tests/testParser.js"
+  },
+  "keywords": [
+    "gmail",
+    "order-extractor",
+    "receipt-parser",
+    "pdf-generator",
+    "ecommerce"
+  ],
+  "author": "SubhOne",
+  "license": "ISC",
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "cheerio": "^1.0.0-rc.12",
+    "commander": "^12.1.0",
+    "date-fns": "^3.6.0",
+    "dotenv": "^16.4.5",
+    "googleapis": "^140.0.0",
+    "mailparser": "^3.7.1",
+    "pdf-parse": "^1.1.1",
+    "pdfkit": "^0.15.0"
+  }
+}

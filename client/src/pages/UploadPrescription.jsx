@@ -4,6 +4,7 @@ import { Upload, FileText, CheckCircle2, AlertCircle, X, ArrowRight, ShieldCheck
 import Button from "../components/ui/Button";
 import api from "../lib/api";
 import { cx } from "../lib/format";
+import { sendPrescriptionNotification } from "../lib/emailjs";
 
 export default function UploadPrescription() {
   const [file, setFile] = useState(null);
@@ -71,6 +72,12 @@ export default function UploadPrescription() {
 
       await api.uploadPrescription(formData);
       setSuccess(true);
+
+      // Asynchronously notify via EmailJS if configured
+      sendPrescriptionNotification({
+        fileName: file.name,
+        notes,
+      }).catch((err) => console.debug("[Prescription EmailJS]", err));
     } catch (err) {
       setError(err.message || "Failed to upload prescription. Please try again.");
     } finally {

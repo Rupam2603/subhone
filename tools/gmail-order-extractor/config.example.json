@@ -1,0 +1,35 @@
+{
+  "credentials_path": "credentials.json",
+  "token_path": "token.json",
+  "data_dir": "./data",
+  "output_dir": "./output",
+  "default_days": 30,
+  "search": {
+    "subjects": [
+      "order",
+      "confirmation",
+      "receipt",
+      "invoice",
+      "shipped",
+      "delivered",
+      "your package"
+    ],
+    "merchants": [
+      "amazon",
+      "flipkart",
+      "shopify",
+      "stripe",
+      "paypal",
+      "subhone",
+      "swiggy",
+      "zomato",
+      "apple"
+    ],
+    "custom_query": ""
+  },
+  "options": {
+    "parse_pdf_attachments": true,
+    "max_results": 200,
+    "currency_symbol": "₹"
+  }
+}

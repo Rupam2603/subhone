@@ -14,6 +14,17 @@ const schema = z.object({
   GUEST_CART_TTL_DAYS: z.coerce.number().int().positive().default(30),
   SEED_ADMIN_EMAIL: z.string().email().optional(),
   SEED_ADMIN_PASSWORD: z.string().min(8).optional(),
+  ADMIN_ORDER_EMAIL: z.string().email().default("subhonehealthgroup@gmail.com"),
+  EMAIL_USER: z.string().optional(),
+  EMAIL_PASS: z.string().optional(),
+  EMAIL_FROM: z.string().optional(),
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().int().optional(),
+  SMTP_SECURE: z.coerce.boolean().optional(),
+  EMAILJS_PUBLIC_KEY: z.string().optional(),
+  EMAILJS_SERVICE_ID: z.string().optional(),
+  EMAILJS_TEMPLATE_ID: z.string().optional(),
+  EMAILJS_PRIVATE_KEY: z.string().optional(),
 });
 
 function loadEnv(raw = process.env) {

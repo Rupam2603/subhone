@@ -9,6 +9,7 @@ import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
 import { inr, cx, discountPct } from "../lib/format";
 import api from "../lib/api";
+import { sendOrderConfirmationNotification } from "../lib/emailjs";
 import Button from "../components/ui/Button";
 import QuantitySelector from "../components/ui/QuantitySelector";
 
@@ -67,6 +68,22 @@ function OrderLine({ item, updateItem, removeItem }) {
         </div>
       </div>
     </li>
+  );
+}
+
+function AddressInput({ label, field, type = "text", placeholder, value, error, onChange }) {
+  return (
+    <div>
+      <label className="label">{label}</label>
+      <input
+        type={type}
+        className={cx("input", error && "!border-error !ring-error/10")}
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange(field, e.target.value)}
+      />
+      {error && <p className="mt-1 text-xs text-error">{error}</p>}
+    </div>
   );
 }
 
@@ -179,6 +196,11 @@ export default function Checkout() {
       });
       setOrderPlaced(order);
       clear();
+
+      // Trigger EmailJS order confirmation notification
+      sendOrderConfirmationNotification(order).catch((err) =>
+        console.debug("[Order EmailJS]", err)
+      );
     } catch (e) {
       alert(e.message || "Failed to place order. Please try again.");
     } finally {
@@ -248,20 +270,6 @@ export default function Checkout() {
     );
   }
 
-  // ─── INPUT HELPER ───
-  const Input = ({ label, field, type = "text", placeholder }) => (
-    <div>
-      <label className="label">{label}</label>
-      <input
-        type={type}
-        className={cx("input", addressErrors[field] && "!border-error !ring-error/10")}
-        placeholder={placeholder}
-        value={address[field]}
-        onChange={(e) => handleAddressField(field, e.target.value)}
-      />
-      {addressErrors[field] && <p className="mt-1 text-xs text-error">{addressErrors[field]}</p>}
-    </div>
-  );
 
   return (
     <div className="container-max py-6 md:py-10">
@@ -284,11 +292,12 @@ export default function Checkout() {
               key={label}
               onClick={() => s < step && goToStep(s)}
               disabled={s > step}
-              className={cx("flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold transition-all", {
-                "bg-primary/10 text-primary": s === step,
-                "text-on-surface-variant hover:text-primary": s < step,
-                "text-on-surface-variant/50 cursor-not-allowed": s > step,
-              })}
+              className={cx(
+                "flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold transition-all",
+                s === step && "bg-primary/10 text-primary",
+                s < step && "text-on-surface-variant hover:text-primary",
+                s > step && "text-on-surface-variant/50 cursor-not-allowed"
+              )}
             >
               <StepBadge step={s} active={s === step} done={s < step} />
               <span className="hidden sm:inline">{label}</span>
@@ -309,14 +318,14 @@ export default function Checkout() {
                 <MapPin className="h-5 w-5 text-primary" /> Delivery Address
               </h2>
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                <Input label="Full Name" field="name" placeholder="Subhasis Das" />
-                <Input label="Phone Number" field="phone" type="tel" placeholder="9876543210" />
+                <AddressInput label="Full Name" field="name" placeholder="Subhasis Das" value={address.name} error={addressErrors.name} onChange={handleAddressField} />
+                <AddressInput label="Phone Number" field="phone" type="tel" placeholder="9876543210" value={address.phone} error={addressErrors.phone} onChange={handleAddressField} />
                 <div className="sm:col-span-2">
-                  <Input label="Street Address" field="street" placeholder="123 MG Road, Apt 4B" />
+                  <AddressInput label="Street Address" field="street" placeholder="123 MG Road, Apt 4B" value={address.street} error={addressErrors.street} onChange={handleAddressField} />
                 </div>
-                <Input label="City" field="city" placeholder="Kolkata" />
-                <Input label="State" field="state" placeholder="West Bengal" />
-                <Input label="PIN Code" field="pincode" type="text" placeholder="700001" />
+                <AddressInput label="City" field="city" placeholder="Kolkata" value={address.city} error={addressErrors.city} onChange={handleAddressField} />
+                <AddressInput label="State" field="state" placeholder="West Bengal" value={address.state} error={addressErrors.state} onChange={handleAddressField} />
+                <AddressInput label="PIN Code" field="pincode" type="text" placeholder="700001" value={address.pincode} error={addressErrors.pincode} onChange={handleAddressField} />
               </div>
               <div className="mt-6 flex justify-end">
                 <Button variant="primary" onClick={() => goToStep(2)}>
