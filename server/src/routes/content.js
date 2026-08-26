@@ -5,6 +5,8 @@ const { supplements } = require("../data/supplements");
 const { banners, categories, wellnessGuides, flashSale } = require("../data/content");
 const { doctors } = require("../data/doctors");
 const store = require("../services/store");
+const couponService = require("../services/couponService");
+const asyncHandler = require("../utils/asyncHandler");
 
 // GET /api/banners — hero carousel slides
 router.get("/banners", (req, res) => res.json(banners));
@@ -35,10 +37,15 @@ router.get("/flash-sale", (req, res) => {
   });
 });
 
-// POST /api/coupons/validate  { code, subtotal }
-router.post("/coupons/validate", (req, res) => {
-  const { code, subtotal } = req.body || {};
-  res.json(store.validateCoupon(code, Number(subtotal) || 0));
-});
+// POST /api/coupons/validate  { code, subtotalPaise }
+router.post(
+  "/coupons/validate",
+  asyncHandler(async (req, res) => {
+    const { code, subtotalPaise } = req.body || {};
+    const subtotal = Number(subtotalPaise) || 0;
+    const result = await couponService.validateCoupon(code, subtotal);
+    res.json(result);
+  })
+);
 
 module.exports = router;
