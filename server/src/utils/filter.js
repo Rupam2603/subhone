@@ -1,64 +1,33 @@
-// Shared filtering & sorting helpers for catalog endpoints.
+// Mongo query-builder for catalog endpoints. Replaces the old in-memory
+// applyFilters/applySort helpers — the catalog now lives in Mongo and prices
+// are stored in paise, so numeric filters compare against pricePaise directly.
 
-function discountPct(item) {
-  if (!item.originalPrice || item.originalPrice <= item.price) return 0;
-  return Math.round((1 - item.price / item.originalPrice) * 100);
+const SORTS = {
+  "price-asc": { pricePaise: 1 },
+  "price-desc": { pricePaise: -1 },
+  "rating-desc": { rating: -1 },
+  "name-asc": { name: 1 },
+  discount: { discountPct: -1 },
+  popularity: { reviews: -1 },
+};
+
+const buildSort = (sort) => SORTS[sort] || { reviews: -1 };
+
+function buildFilter(query, base = {}) {
+  const filter = { ...base };
+  if (query.search) filter.name = { $regex: String(query.search).trim(), $options: "i" };
+  if (query.brand) filter.brand = query.brand;
+  if (query.category) filter.category = query.category;
+  if (query.dosageForm) filter.dosageForm = query.dosageForm;
+  if (String(query.inStock) === "true") filter.inStock = true;
+  const min = query.minPrice === undefined ? null : Number(query.minPrice);
+  const max = query.maxPrice === undefined ? null : Number(query.maxPrice);
+  if (Number.isFinite(min) || Number.isFinite(max)) {
+    filter.pricePaise = {};
+    if (Number.isFinite(min)) filter.pricePaise.$gte = min;
+    if (Number.isFinite(max)) filter.pricePaise.$lte = max;
+  }
+  return filter;
 }
 
-function csv(value) {
-  return String(value)
-    .split(",")
-    .map((v) => v.trim().toLowerCase())
-    .filter(Boolean);
-}
-
-function applyFilters(items, query = {}) {
-  let out = [...items];
-  const { search, brand, dosageForm, category, minPrice, maxPrice, inStock, minRating } = query;
-
-  if (search) {
-    const s = search.toLowerCase();
-    out = out.filter((i) =>
-      [i.name, i.brand, i.description, i.category, ...(i.tags || [])]
-        .filter(Boolean)
-        .some((f) => String(f).toLowerCase().includes(s))
-    );
-  }
-  if (brand) {
-    const brands = csv(brand);
-    out = out.filter((i) => i.brand && brands.includes(i.brand.toLowerCase()));
-  }
-  if (dosageForm) {
-    const forms = csv(dosageForm);
-    out = out.filter((i) => i.dosageForm && forms.includes(i.dosageForm.toLowerCase()));
-  }
-  if (category) {
-    const cats = csv(category);
-    out = out.filter((i) => i.category && cats.includes(i.category.toLowerCase()));
-  }
-  if (minPrice !== undefined && minPrice !== "") out = out.filter((i) => i.price >= Number(minPrice));
-  if (maxPrice !== undefined && maxPrice !== "") out = out.filter((i) => i.price <= Number(maxPrice));
-  if (inStock === "true" || inStock === true) out = out.filter((i) => i.inStock !== false);
-  if (minRating) out = out.filter((i) => (i.rating || 0) >= Number(minRating));
-
-  return out;
-}
-
-function applySort(items, sort) {
-  const out = [...items];
-  switch (sort) {
-    case "price-asc":
-      return out.sort((a, b) => a.price - b.price);
-    case "price-desc":
-      return out.sort((a, b) => b.price - a.price);
-    case "rating":
-      return out.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-    case "discount":
-      return out.sort((a, b) => discountPct(b) - discountPct(a));
-    case "popularity":
-    default:
-      return out.sort((a, b) => (b.reviews || 0) - (a.reviews || 0));
-  }
-}
-
-module.exports = { applyFilters, applySort, discountPct };
+module.exports = { buildFilter, buildSort };

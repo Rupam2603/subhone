@@ -12,6 +12,7 @@ const User = require("../models/User");
 const { medicines } = require("../data/medicines");
 const { supplements } = require("../data/supplements");
 const { labTests } = require("../data/labTests");
+const { babyFood } = require("../data/babyFood");
 
 // Convert rupees to paise
 function mapItem(item) {
@@ -53,6 +54,9 @@ async function seed() {
 
   console.log("Seeding supplements...");
   await Product.insertMany(supplements.map(mapItem));
+
+  console.log("Seeding baby food...");
+  await Product.insertMany(babyFood.map(mapItem));
 
   console.log("Seeding lab tests...");
   await LabTest.insertMany(labTests.map(mapItem));

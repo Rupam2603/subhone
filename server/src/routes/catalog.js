@@ -1,42 +1,29 @@
 const express = require("express");
 const router = express.Router();
-const { medicines } = require("../data/medicines");
-const { supplements } = require("../data/supplements");
-const { babyFood } = require("../data/babyFood");
-const { applyFilters, applySort } = require("../utils/filter");
+const Product = require("../models/Product");
+const { buildFilter, buildSort } = require("../utils/filter");
+const { publicProduct } = require("../utils/serialise");
+const asyncHandler = require("../utils/asyncHandler");
 
-// GET /api/medicines?search=&brand=&dosageForm=&category=&minPrice=&maxPrice=&inStock=&sort=
-router.get("/medicines", (req, res) => {
-  let result = applyFilters(medicines, req.query);
-  result = applySort(result, req.query.sort);
-  res.json(result);
+const list = (type) => asyncHandler(async (req, res) => {
+  const docs = await Product.find(buildFilter(req.query, { type })).sort(buildSort(req.query.sort));
+  res.json(docs.map(publicProduct));
 });
 
-// GET /api/supplements?search=&category=&sort=&minPrice=&maxPrice=
-router.get("/supplements", (req, res) => {
-  let result = applyFilters(supplements, req.query);
-  result = applySort(result, req.query.sort);
-  res.json(result);
-});
+router.get("/medicines", list("medicine"));
+router.get("/supplements", list("supplement"));
+router.get("/baby-food", list("babyfood")); // keep this route; Product.type now includes babyfood
 
-// GET /api/baby-food?search=&category=&ageGroup=&sort=&minPrice=&maxPrice=
-router.get("/baby-food", (req, res) => {
-  let result = applyFilters(babyFood, req.query);
-  result = applySort(result, req.query.sort);
-  res.json(result);
-});
+// Find by the committed string id (cart/order resolve the catalog by string id, NOT _id).
+router.get("/products/:id", asyncHandler(async (req, res) => {
+  const doc = await Product.findOne({ id: req.params.id });
+  if (!doc) return res.status(404).json({ error: "Product not found", code: "NOT_FOUND" });
+  res.json(publicProduct(doc));
+}));
 
-// GET /api/products/:id — find across medicines + supplements
-router.get("/products/:id", (req, res) => {
-  const product = [...medicines, ...supplements].find((p) => p.id === req.params.id);
-  if (!product) return res.status(404).json({ error: "Product not found" });
-  res.json(product);
-});
-
-// Distinct brands (handy for filter sidebar)
-router.get("/brands", (req, res) => {
-  const brands = [...new Set(medicines.map((m) => m.brand))].sort();
-  res.json(brands);
-});
+router.get("/brands", asyncHandler(async (req, res) => {
+  const brands = await Product.distinct("brand");
+  res.json(brands.filter(Boolean).sort());
+}));
 
 module.exports = router;

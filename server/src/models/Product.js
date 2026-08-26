@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const productSchema = new mongoose.Schema(
   {
     id: { type: String, required: true, unique: true }, // The string ID from the old prototype (e.g. "m1")
-    type: { type: String, required: true, enum: ["medicine", "supplement"] },
+    type: { type: String, required: true, enum: ["medicine", "supplement", "babyfood"] },
     name: { type: String, required: true },
     brand: { type: String, required: true },
     pricePaise: { type: Number, required: true },

@@ -1,28 +1,44 @@
 const express = require("express");
 const router = express.Router();
-const { medicines } = require("../data/medicines");
-const { supplements } = require("../data/supplements");
-const { labTests } = require("../data/labTests");
+const Product = require("../models/Product");
+const LabTest = require("../models/LabTest");
+const { publicProduct, publicLabTest } = require("../utils/serialise");
+const asyncHandler = require("../utils/asyncHandler");
 
-// GET /api/search?q=... — omnisearch across medicines, supplements & lab tests
-router.get("/", (req, res) => {
-  const q = String(req.query.q || "").toLowerCase().trim();
+// GET /api/search?q=... — omnisearch across medicines, supplements & lab tests.
+// Shape expected by SearchModal: { query, medicines, supplements, labTests, total }.
+// babyfood is bucketed into medicines (the client's grouping only has
+// medicines / supplements / labTests).
+router.get("/", asyncHandler(async (req, res) => {
+  const q = String(req.query.q || "").trim();
   if (!q) return res.json({ query: "", medicines: [], supplements: [], labTests: [], total: 0 });
 
-  const match = (item, fields) =>
-    fields.some((f) => item[f] && String(item[f]).toLowerCase().includes(q));
+  const re = { $regex: q, $options: "i" };
+  const [meds, sups, labs] = await Promise.all([
+    Product.find({
+      $or: [{ name: re }, { brand: re }, { category: re }, { description: re }],
+      type: { $in: ["medicine", "babyfood"] },
+    }),
+    Product.find({
+      $or: [{ name: re }, { brand: re }, { category: re }, { description: re }],
+      type: "supplement",
+    }),
+    LabTest.find({
+      $or: [{ name: re }, { category: re }, { description: re }],
+    }),
+  ]);
 
-  const med = medicines.filter((i) => match(i, ["name", "brand", "category", "description"]));
-  const sup = supplements.filter((i) => match(i, ["name", "brand", "category", "description"]));
-  const lab = labTests.filter((i) => match(i, ["name", "category", "description"]));
+  const medicines = meds.map(publicProduct);
+  const supplements = sups.map(publicProduct);
+  const labTests = labs.map(publicLabTest);
 
   res.json({
     query: q,
-    medicines: med,
-    supplements: sup,
-    labTests: lab,
-    total: med.length + sup.length + lab.length,
+    medicines,
+    supplements,
+    labTests,
+    total: medicines.length + supplements.length + labTests.length,
   });
-});
+}));
 
 module.exports = router;
