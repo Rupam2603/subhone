@@ -19,6 +19,7 @@ const prescriptionRoutes = require("./routes/prescriptions");
 const consultationRoutes = require("./routes/consultations");
 const searchRoutes = require("./routes/search");
 const contentRoutes = require("./routes/content");
+const meRoutes = require("./routes/me");
 
 const cfg = loadEnv();
 
@@ -67,6 +68,7 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/prescriptions", prescriptionRoutes);
 app.use("/api/consultations", consultationRoutes);
 app.use("/api/search", searchRoutes);
+app.use("/api/me", meRoutes);
 app.use("/api", contentRoutes); // /api/banners, /api/categories, /api/wellness, /api/doctors, /api/flash-sale, /api/coupons/validate
 
 app.use("/api", (req, res) =>
