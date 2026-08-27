@@ -40,15 +40,15 @@ const banners = [
   },
 ];
 
-// Quick-action bento cards (icon = lucide-react icon name)
 const categories = [
   { id: "c1", label: "Medicines", caption: "Upload Rx & save", icon: "Pill", to: "/medicines", accent: "primary" },
   { id: "c2", label: "Lab Tests", caption: "Home sample pickup", icon: "FlaskConical", to: "/lab-tests", accent: "teal" },
   { id: "c3", label: "Supplements", caption: "Vitamins & protein", icon: "Leaf", to: "/supplements", accent: "emerald" },
-  { id: "c4", label: "Baby Food", caption: "Organic nutrition", icon: "Baby", to: "/baby-food", accent: "amber" },
-  { id: "c5", label: "Consult Doctor", caption: "24×7 online", icon: "Stethoscope", to: "/consult", accent: "navy" },
-  { id: "c6", label: "Upload Rx", caption: "Pharmacist review", icon: "FileText", to: "/upload-prescription", accent: "amber" },
-  { id: "c7", label: "Offers", caption: "Deals up to 60%", icon: "BadgePercent", to: "/medicines?sort=discount", accent: "primary" },
+  { id: "c4", label: "Baby Food", caption: "Pediatric nutrition", icon: "Baby", to: "/baby-food", accent: "amber" },
+  { id: "c5", label: "Baby Diapers", caption: "Anti-rash pants & tape", icon: "ShieldCheck", to: "/medicines?category=Baby+Diapers", accent: "teal" },
+  { id: "c6", label: "Adult Diapers", caption: "Incontinence protection", icon: "Heart", to: "/medicines?category=Adult+Diapers", accent: "navy" },
+  { id: "c7", label: "Consult Doctor", caption: "24×7 online", icon: "Stethoscope", to: "/consult", accent: "navy" },
+  { id: "c8", label: "Upload Rx", caption: "Pharmacist review", icon: "FileText", to: "/upload-prescription", accent: "amber" },
 ];
 
 // Wellness guides / editorial

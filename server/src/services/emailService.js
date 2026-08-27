@@ -1,4 +1,5 @@
 const nodemailer = require("nodemailer");
+const Mailjet = require("node-mailjet");
 
 const DEFAULT_ADMIN_EMAIL = "subhonehealthgroup@gmail.com";
 
@@ -317,7 +318,40 @@ async function sendOrderNotification(order) {
     console.error(`\n  ✗ EmailJS dispatch failed:`, result.error);
   }
 
-  // 3. Fallback: Log order details to console
+  // 3. Try Mailjet if configured
+  const mailjetApiKey = process.env.MAILJET_API_KEY;
+  const mailjetSecretKey = process.env.MAILJET_SECRET_KEY;
+
+  if (mailjetApiKey && mailjetSecretKey) {
+    const mailjet = Mailjet.apiConnect(mailjetApiKey, mailjetSecretKey);
+    try {
+      const request = await mailjet.post("send", { version: "v3.1" }).request({
+        Messages: [
+          {
+            From: {
+              Email: recipientEmail, // Using recipient as sender (must be verified in Mailjet)
+              Name: "SubhOne Orders"
+            },
+            To: [
+              {
+                Email: recipientEmail,
+                Name: "SubhOne Admin"
+              }
+            ],
+            Subject: `🛒 New Order #${order.id || ""} Received - ₹${order.total || 0} (${order.address?.name || "Customer"})`,
+            TextPart: generatePlainText(order),
+            HTMLPart: generateHtml(order)
+          }
+        ]
+      });
+      console.log(`\n  ✓ Order notification email sent to ${recipientEmail} via Mailjet (Status: ${request.response.status})\n`);
+      return { success: true, provider: "mailjet" };
+    } catch (err) {
+      console.error(`\n  ✗ Mailjet dispatch failed:`, err.message || err.response?.data);
+    }
+  }
+
+  // 4. Fallback: Log order details to console
   console.log(`\n  ======================================================`);
   console.log(`  📧 [ORDER EMAIL NOTIFICATION] -> Target: ${recipientEmail}`);
   console.log(`  ------------------------------------------------------`);
@@ -325,7 +359,8 @@ async function sendOrderNotification(order) {
   console.log(`  Address: ${formatAddress(order.address)}`);
   console.log(`  Payment: ${order.paymentMethod || "Cash on Delivery"}`);
   console.log(`  Items (${(order.items || []).length}): ${(order.items || []).map((i) => `${i.name} x${i.quantity}`).join(", ")}`);
-  console.log(`  ℹ️  To send live emails, configure EMAIL_USER/EMAIL_PASS (SMTP) or EMAILJS_SERVICE_ID/EMAILJS_TEMPLATE_ID in server/.env`);
+  console.log(`  ℹ️  To send live emails, configure EMAIL_USER/EMAIL_PASS (SMTP), EMAILJS_SERVICE_ID/EMAILJS_TEMPLATE_ID, or MAILJET_API_KEY/MAILJET_SECRET_KEY in server/.env`);
+
   console.log(`  ======================================================\n`);
 
   return {

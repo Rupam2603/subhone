@@ -17,7 +17,12 @@ function buildFilter(query, base = {}) {
   const filter = { ...base };
   if (query.search) filter.name = { $regex: String(query.search).trim(), $options: "i" };
   if (query.brand) filter.brand = query.brand;
-  if (query.category) filter.category = query.category;
+  if (query.category) {
+    filter.$or = [
+      { category: query.category },
+      { categories: query.category },
+    ];
+  }
   if (query.dosageForm) filter.dosageForm = query.dosageForm;
   if (String(query.inStock) === "true") filter.inStock = true;
   const min = query.minPrice === undefined ? null : Number(query.minPrice);

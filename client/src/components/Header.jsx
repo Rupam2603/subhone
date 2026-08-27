@@ -9,9 +9,11 @@ import SearchModal from "./SearchModal";
 
 const NAV = [
   { to: "/medicines", label: "Medicines" },
+  { to: "/baby-food", label: "Baby & Nutrition" },
+  { to: "/medicines?category=Baby+Diapers", label: "Baby Diapers" },
+  { to: "/medicines?category=Adult+Diapers", label: "Adult Diapers" },
   { to: "/supplements", label: "Supplements" },
   { to: "/lab-tests", label: "Lab Tests" },
-  { to: "/consult", label: "Consult" },
 ];
 
 function Logo({ onClick }) {

@@ -1,54 +1,61 @@
 const express = require("express");
-const path = require("path");
-const fs = require("fs");
-const multer = require("multer");
 const router = express.Router();
-const store = require("../services/store");
+const requireAuth = require("../middleware/requireAuth");
+const asyncHandler = require("../utils/asyncHandler");
+const upload = require("../config/upload");
+const Prescription = require("../models/Prescription");
+const Counter = require("../models/Counter");
+const AppError = require("../utils/AppError");
 
-const UPLOAD_DIR = path.join(__dirname, "..", "..", "uploads");
-if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+// Every prescription route is account-scoped.
+router.use(requireAuth);
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
-  filename: (req, file, cb) => {
-    const safe = file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, "_");
-    cb(null, `${Date.now()}-${safe}`);
+// POST /api/prescriptions/upload  (multipart field: "file")
+router.post(
+  "/upload",
+  (req, res, next) => {
+    upload.single("file")(req, res, (err) => {
+      if (err) return next(err);
+      if (!req.file) {
+        return next(new AppError(422, "FILE_REQUIRED", "A prescription file is required."));
+      }
+      next();
+    });
   },
-});
+  asyncHandler(async (req, res) => {
+    const seq = await Counter.getNextSequence("prescriptions");
+    const prescriptionNumber = `RX-${String(seq).padStart(6, "0")}`;
 
-const ALLOWED = ["image/jpeg", "image/png", "image/webp", "image/heic", "application/pdf"];
-const upload = multer({
-  storage,
-  limits: { fileSize: 8 * 1024 * 1024 }, // 8 MB
-  fileFilter: (req, file, cb) => {
-    if (ALLOWED.includes(file.mimetype)) return cb(null, true);
-    cb(new Error("Only JPG, PNG, WEBP or PDF files up to 8MB are allowed."));
-  },
-});
-
-// POST /api/prescriptions/upload  (multipart field: "prescription")
-router.post("/upload", (req, res) => {
-  upload.single("prescription")(req, res, (err) => {
-    if (err) return res.status(400).json({ error: err.message });
-    if (!req.file) return res.status(400).json({ error: "No file uploaded." });
-
-    const record = store.addPrescription({
-      filename: req.file.filename,
+    const record = await Prescription.create({
+      prescriptionNumber,
+      userId: req.user._id,
+      filePath: req.file.filename,
       originalName: req.file.originalname,
-      size: req.file.size,
       mimeType: req.file.mimetype,
-      url: `/uploads/${req.file.filename}`,
-      notes: req.body.notes || "",
+      sizeBytes: req.file.size,
+      note: req.body.note || "",
     });
 
     res.status(201).json({
-      ...record,
-      message: "Prescription received — a pharmacist will review it within 30 minutes.",
+      id: record.prescriptionNumber,
+      status: record.status,
+      filePath: record.filePath,
+      originalName: record.originalName,
+      mimeType: record.mimeType,
+      sizeBytes: record.sizeBytes,
+      note: record.note,
+      message: "Prescription received — a pharmacist will review it shortly.",
     });
-  });
-});
+  })
+);
 
-// GET /api/prescriptions
-router.get("/", (req, res) => res.json(store.listPrescriptions()));
+// GET /api/prescriptions — upload history for the caller
+router.get(
+  "/",
+  asyncHandler(async (req, res) => {
+    const list = await Prescription.find({ userId: req.user._id });
+    res.json(list);
+  })
+);
 
 module.exports = router;

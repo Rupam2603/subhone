@@ -10,6 +10,7 @@ const productSchema = new mongoose.Schema(
     mrpPaise: { type: Number, required: true }, // was originalPrice
     dosageForm: { type: String },
     category: { type: String, required: true },
+    categories: [{ type: String, index: true }],
     packSize: { type: String },
     prescriptionRequired: { type: Boolean, default: false },
     inStock: { type: Boolean, default: true },

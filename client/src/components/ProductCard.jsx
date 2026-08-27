@@ -12,7 +12,7 @@ export default function ProductCard({ product }) {
   const { getQuantity, addItem, updateItem, removeItem } = useCart();
   const qty = getQuantity(product.id, product.type);
   const pct = discountPct(product.price, product.originalPrice);
-  const outOfStock = product.type === "medicine" && product.inStock === false;
+  const outOfStock = product.inStock === false;
   const meta = product.packSize || (product.servings ? `${product.servings} servings` : product.category);
 
   return (

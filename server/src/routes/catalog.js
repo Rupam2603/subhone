@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const Product = require("../models/Product");
+const Category = require("../models/Category");
 const { buildFilter, buildSort } = require("../utils/filter");
 const { publicProduct } = require("../utils/serialise");
 const asyncHandler = require("../utils/asyncHandler");
@@ -24,6 +25,11 @@ router.get("/products/:id", asyncHandler(async (req, res) => {
 router.get("/brands", asyncHandler(async (req, res) => {
   const brands = await Product.distinct("brand");
   res.json(brands.filter(Boolean).sort());
+}));
+
+router.get("/categories", asyncHandler(async (req, res) => {
+  const tree = await Category.getCategoryTree();
+  res.json(tree);
 }));
 
 module.exports = router;

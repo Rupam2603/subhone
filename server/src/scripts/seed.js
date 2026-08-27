@@ -7,7 +7,9 @@ const bcrypt = require("bcrypt");
 const Product = require("../models/Product");
 const LabTest = require("../models/LabTest");
 const Coupon = require("../models/Coupon");
+const Category = require("../models/Category");
 const User = require("../models/User");
+const { up: seedCategories } = require("./migrations/001_create_categories");
 
 const { medicines } = require("../data/medicines");
 const { supplements } = require("../data/supplements");
@@ -48,6 +50,7 @@ async function seed() {
   await Product.deleteMany({});
   await LabTest.deleteMany({});
   await Coupon.deleteMany({});
+  await Category.deleteMany({});
 
   console.log("Seeding medicines...");
   await Product.insertMany(medicines.map(mapItem));
@@ -57,6 +60,9 @@ async function seed() {
 
   console.log("Seeding baby food...");
   await Product.insertMany(babyFood.map(mapItem));
+
+  console.log("Seeding categories and mappings...");
+  await seedCategories();
 
   console.log("Seeding lab tests...");
   await LabTest.insertMany(labTests.map(mapItem));
